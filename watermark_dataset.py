@@ -6,8 +6,8 @@ from PIL import Image
 class WatermarkDataset(Dataset):
     def __init__(self, dataset_dir, transform=None):
         # Путь к подкаталогам
-        self.with_watermark_dir = os.path.join(dataset_dir, 'with_watermark')
-        self.without_watermark_dir = os.path.join(dataset_dir, 'without_watermark')
+        self.with_watermark_dir = os.path.join(dataset_dir, 'with_watermark/cropped')
+        self.without_watermark_dir = os.path.join(dataset_dir, 'without_watermark/cropped/')
 
         # Получаем имена файлов изображений
         self.with_watermark_files = [f for f in os.listdir(self.with_watermark_dir)]
