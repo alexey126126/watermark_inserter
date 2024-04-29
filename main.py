@@ -11,21 +11,20 @@ def split_into_blocks(image, block_size):
     blocks = []
     for y in range(0, image_height, block_size):
         for x in range(0, image_width, block_size):
-            # Корректируем размеры блока, чтобы не выйти за пределы изображения
-            end_x = min(x + block_size, image_width)  # Ограничиваем правую границу
-            end_y = min(y + block_size, image_height)  # Ограничиваем нижнюю границу
+            end_x = min(x + block_size, image_width)  # Граничные значения
+            end_y = min(y + block_size, image_height)
             block = image.crop((x, y, end_x, end_y))
             blocks.append(((x, y), block))
     return blocks
 
 
-# Функция нахождения блока с наибольшим изменением цвета
+# Функция нахождения блока с наибольшей изменчивостью цвета
 def find_block_with_max_color_change(blocks):
     max_variance = 0
     target_position = None
 
     for position, block in blocks:
-        block_np = np.array(block.convert("L"))  # Преобразуем в оттенки серого
+        block_np = np.array(block.convert("L"))  # Преобразуем в черно-белое
         variance = np.var(block_np)  # Измеряем дисперсию
 
         if variance > max_variance:
@@ -35,36 +34,41 @@ def find_block_with_max_color_change(blocks):
     return target_position
 
 
-# Функция встраивания водяного знака в изображение
+# Функция встраивания видимого водяного знака
 def embed_watermark(input_image_path, output_image_path, watermark_text, block_position, block_size):
     image = Image.open(input_image_path).convert("RGBA")
     watermark_layer = Image.new("RGBA", image.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(watermark_layer)
 
-    # Используем фиксированный шрифт и его размер
-    font_path = "arial.ttf"  # Убедитесь, что путь к шрифту правильный
-    font_size = 50  # Размер шрифта
+    # Используем фиксированный размер шрифта
+    font_path = "arial.ttf"
+    font_size = 50
     font = ImageFont.truetype(font_path, font_size)
 
-    # Фиксированное положение (центр блока)
     x, y = block_position
-    position = (x + block_size // 2, y + block_size // 2)
+    position = (x + block_size // 2, y + block_size // 2)  # Центрируем текст
 
-    # Встраиваем водяной знак в заданное положение
-    draw.text(position, watermark_text, font=font, fill=(255, 255, 255, 128))  # Белый с прозрачностью
+    draw.text(position, watermark_text, font=font, fill=(255, 255, 255, 128))
 
-    # Объединяем слои и сохраняем изображение
+    # Объединяем оригинальное изображение с водяным знаком
     watermarked_image = Image.alpha_composite(image, watermark_layer)
     watermarked_image.save(output_image_path)
+
 
 # Функция для удаления водяного знака
 def remove_watermark(input_image_path, output_image_path, block_position, block_size):
     image = cv2.imread(input_image_path)
 
+    # Получаем размеры изображения
+    height, width = image.shape[:2]
+
     if block_position and len(block_position) == 2:
-        mask = np.zeros(image.shape[:2], dtype=np.uint8)
         x, y = block_position
-        mask[y:y + block_size, x + x + block_size] = 255  # Устанавливаем белую область в маске
+        end_x = min(x + block_size, width)  # Ограничиваем ширину маски
+        end_y = min(y + block_size, height)  # Ограничиваем высоту маски
+
+        mask = np.zeros((height, width), dtype=np.uint8)
+        mask[y:end_y, x:end_x] = 255  # Устанавливаем белую область в маске
 
         inpainted_image = cv2.inpaint(image, mask, inpaintRadius=3, flags=cv2.INPAINT_TELEA)
 
@@ -79,7 +83,7 @@ class WatermarkApp(tk.Tk):
         super().__init__()
         self.title("Watermark App")
 
-        # Компоненты GUI
+        # Компоненты интерфейса
         self.load_button = tk.Button(self, text="Загрузить изображение", command=self.load_image)
         self.load_button.pack(pady=10)
 
@@ -98,9 +102,11 @@ class WatermarkApp(tk.Tk):
     # Функция загрузки изображения
     def load_image(self):
         self.image_path = filedialog.askopenfilename(title="Выберите изображение",
-                                                     filetypes=[("Изображения", "*.png;*.jpg;*.jpeg")])
+                                                     filetypes=[("Изображения", "*.png")])
+        if not self.image_path:
+            messagebox.showwarning("Предупреждение", "Изображение не загружено")
 
-    # Функция для встраивания водяного знака
+    # Функция встраивания водяного знака
     def embed_watermark(self):
         if self.image_path:
             watermark_text = self.watermark_entry.get()
@@ -110,7 +116,7 @@ class WatermarkApp(tk.Tk):
             block_position = find_block_with_max_color_change(blocks)
 
             if block_position is not None:
-                output_image_path = "image_with_watermark.png"
+                output_image_path = "dataset/with_watermark/image_1.png"
                 embed_watermark(self.image_path, output_image_path, watermark_text, block_position, block_size)
                 messagebox.showinfo("Успех", "Водяной знак встроен")
             else:
@@ -127,7 +133,7 @@ class WatermarkApp(tk.Tk):
 
             if block_position is not None:
                 output_image_path = "image_without_watermark.png"
-                remove_watermark("image_with_watermark.png", output_image_path, block_position, block_size)
+                remove_watermark("dataset/with_watermark/image_1.png", output_image_path, block_position, block_size)
                 messagebox.showinfo("Успех", "Водяной знак удален")
             else:
                 messagebox.showerror("Ошибка", "Не удалось найти блок с наибольшим изменением")
