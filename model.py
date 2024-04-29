@@ -5,7 +5,7 @@ import torchvision.transforms as transforms
 from torchvision.utils import make_grid
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
-import WatarmarkDataset
+import watermark_dataset
 
 
 # Определение архитектуры U-Net
@@ -73,7 +73,7 @@ transform = transforms.Compose([
 ])
 
 # Создание датасета и загрузчика данных
-dataset = WatarmarkDataset.WatermarkDataset(images_dir, transform=transform)
+dataset = watermark_dataset.WatermarkDataset(images_dir, transform=transform)
 data_loader = DataLoader(dataset, batch_size=16, shuffle=True)
 
 # Инициализация модели
