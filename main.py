@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
 from PIL import Image, ImageDraw, ImageFont
 import cv2
 import numpy as np
@@ -11,7 +11,10 @@ def split_into_blocks(image, block_size):
     blocks = []
     for y in range(0, image_height, block_size):
         for x in range(0, image_width, block_size):
-            block = image.crop((x, y, x + block_size, y + block_size))
+            # Корректируем размеры блока, чтобы не выйти за пределы изображения
+            end_x = min(x + block_size, image_width)  # Ограничиваем правую границу
+            end_y = min(y + block_size, image_height)  # Ограничиваем нижнюю границу
+            block = image.crop((x, y, end_x, end_y))
             blocks.append(((x, y), block))
     return blocks
 
@@ -32,34 +35,42 @@ def find_block_with_max_color_change(blocks):
     return target_position
 
 
-# Функция встраивания водяного знака
+# Функция встраивания водяного знака в изображение
 def embed_watermark(input_image_path, output_image_path, watermark_text, block_position, block_size):
     image = Image.open(input_image_path).convert("RGBA")
     watermark_layer = Image.new("RGBA", image.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(watermark_layer)
 
-    font = ImageFont.truetype("arial.ttf", 50)
+    # Используем фиксированный шрифт и его размер
+    font_path = "arial.ttf"  # Убедитесь, что путь к шрифту правильный
+    font_size = 50  # Размер шрифта
+    font = ImageFont.truetype(font_path, font_size)
+
+    # Фиксированное положение (центр блока)
     x, y = block_position
-    text_width, text_height = draw.textlength(watermark_text, font)
-    position = (x + (block_size - text_width) // 2, y + (block_size - text_height) // 2)
+    position = (x + block_size // 2, y + block_size // 2)
 
-    draw.text(position, watermark_text, font=font, fill=(255, 255, 255, 128))
+    # Встраиваем водяной знак в заданное положение
+    draw.text(position, watermark_text, font=font, fill=(255, 255, 255, 128))  # Белый с прозрачностью
 
+    # Объединяем слои и сохраняем изображение
     watermarked_image = Image.alpha_composite(image, watermark_layer)
     watermarked_image.save(output_image_path)
-
 
 # Функция для удаления водяного знака
 def remove_watermark(input_image_path, output_image_path, block_position, block_size):
     image = cv2.imread(input_image_path)
 
-    mask = np.zeros(image.shape[:2], dtype=np.uint8)
-    x, y = block_position
-    mask[y:y + block_size, x + x + block_size] = 255  # Устанавливаем белую область в маске
+    if block_position and len(block_position) == 2:
+        mask = np.zeros(image.shape[:2], dtype=np.uint8)
+        x, y = block_position
+        mask[y:y + block_size, x + x + block_size] = 255  # Устанавливаем белую область в маске
 
-    inpainted_image = cv2.inpaint(image, mask, inpaintRadius=3, flags=cv2.INPAINT_TELEA)
+        inpainted_image = cv2.inpaint(image, mask, inpaintRadius=3, flags=cv2.INPAINT_TELEA)
 
-    cv2.imwrite(output_image_path, inpainted_image)
+        cv2.imwrite(output_image_path, inpainted_image)
+    else:
+        raise ValueError("block_position должен содержать два значения (x, y)")
 
 
 # Класс приложения на tkinter
@@ -98,25 +109,30 @@ class WatermarkApp(tk.Tk):
             blocks = split_into_blocks(image, block_size)
             block_position = find_block_with_max_color_change(blocks)
 
-            output_image_path = "image_with_watermark.jpg"
-            embed_watermark(self.image_path, output_image_path, watermark_text, block_position, block_size)
-            print("Водяной знак встроен")
+            if block_position is not None:
+                output_image_path = "image_with_watermark.png"
+                embed_watermark(self.image_path, output_image_path, watermark_text, block_position, block_size)
+                messagebox.showinfo("Успех", "Водяной знак встроен")
+            else:
+                messagebox.showerror("Ошибка", "Не удалось найти блок с наибольшим изменением")
         else:
-            print("Пожалуйста, загрузите изображение")
+            messagebox.showwarning("Предупреждение", "Пожалуйста, загрузите изображение")
 
     # Функция для удаления водяного знака
     def remove_watermark(self):
         if self.image_path:
-            image = Image.open(self.image_path)
             block_size = 100
-            blocks = split_into_blocks(image, block_size)
+            blocks = split_into_blocks(Image.open(self.image_path), block_size)
             block_position = find_block_with_max_color_change(blocks)
 
-            output_image_path = "image_without_watermark.jpg"
-            remove_watermark("image_with_watermark.jpg", output_image_path, block_position, block_size)
-            print("Водяной знак удален")
+            if block_position is not None:
+                output_image_path = "image_without_watermark.png"
+                remove_watermark("image_with_watermark.png", output_image_path, block_position, block_size)
+                messagebox.showinfo("Успех", "Водяной знак удален")
+            else:
+                messagebox.showerror("Ошибка", "Не удалось найти блок с наибольшим изменением")
         else:
-            print("Пожалуйста, загрузите изображение")
+            messagebox.showwarning("Предупреждение", "Пожалуйста, загрузите изображение")
 
 
 # Запуск приложения
