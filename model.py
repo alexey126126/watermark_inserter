@@ -12,8 +12,7 @@ import watermark_dataset
 class UNet(nn.Module):
     def __init__(self):
         super(UNet, self).__init__()
-        # Слои U-Net
-        self.encoder1 = self.double_conv(3, 64)
+        self.encoder1 = self.double_conv(4, 64)  # Ожидает 4 канала на входе
         self.encoder2 = self.double_conv(64, 128)
         self.encoder3 = self.double_conv(128, 256)
 
@@ -23,10 +22,9 @@ class UNet(nn.Module):
         self.decoder2 = self.up_conv(256, 128)
         self.decoder1 = self.up_conv(128, 64)
 
-        self.final_conv = nn.Conv2d(64, 3, 1)  # Конечный слой, вывод 3-канальное изображение
+        self.final_conv = nn.Conv2d(64, 4, 1)  # Возвращает 4 канала
 
     def double_conv(self, in_channels, out_channels):
-        # Два последовательных свёрточных слоя
         return nn.Sequential(
             nn.Conv2d(in_channels, out_channels, 3, padding=1),
             nn.ReLU(inplace=True),
@@ -35,14 +33,12 @@ class UNet(nn.Module):
         )
 
     def up_conv(self, in_channels, out_channels):
-        # Обратная свёртка для увеличения размера
         return nn.Sequential(
             nn.ConvTranspose2d(in_channels, out_channels, 2, stride=2),
             self.double_conv(out_channels, out_channels)
         )
 
     def forward(self, x):
-        # Прохождение через U-Net
         e1 = self.encoder1(x)
         e2 = self.encoder2(self.max_pool(e1))
         e3 = self.encoder3(self.max_pool(e2))
@@ -50,7 +46,7 @@ class UNet(nn.Module):
         middle = self.middle(self.max_pool(e3))
 
         d3 = self.decoder3(middle)
-        d2 = self.decoder2(d3 + e3)  # Смешиваем с энкодером
+        d2 = self.decoder2(d3 + e3)  # Смешиваем
         d1 = self.decoder1(d2 + e2)
 
         out = self.final_conv(d1 + e1)
