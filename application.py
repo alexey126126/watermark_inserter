@@ -32,7 +32,7 @@ class WatermarkApp(tk.Tk):
         self.image_path = None
         self.model = model
         self.transform = transforms.Compose([
-            transforms.Resize((256, 256)),
+            transforms.Resize((960, 512)),
             transforms.ToTensor()  # Преобразуем изображение в тензор
         ])
 
@@ -71,7 +71,7 @@ class WatermarkApp(tk.Tk):
             output_tensor = self.model(image_tensor)
             output_image = transforms.ToPILImage()(output_tensor.squeeze(0))  # Преобразуем обратно в PIL
 
-            output_image_path = "image_without_watermark.ppg"
+            output_image_path = "image_without_watermark.png"
             output_image.save(output_image_path)
 
             messagebox.showinfo("Успех", f"Водяной знак удален. Изображение сохранено как '{output_image_path}'")

@@ -11,7 +11,7 @@ from watermark_dataset import WatermarkDataset
 # Создаем датасет и загрузчик данных
 dataset_dir = 'dataset'  # Путь к вашему датасету
 transform = transforms.Compose([
-    transforms.Resize((256, 256)),  # Измените размер в зависимости от модели
+    transforms.Resize((960, 512)),  # Измените размер в зависимости от модели
     transforms.ToTensor()
 ])
 
@@ -59,5 +59,5 @@ plt.title("График потерь")
 plt.show()
 
 # Сохранение обученной модели
-torch.save(model, " trained_model/unet_model.pth")  # Убедитесь, что путь указан верно
+torch.save(model, "unet_model.pth")  # Убедитесь, что путь указан верно
 
